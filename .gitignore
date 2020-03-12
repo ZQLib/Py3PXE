@@ -13,3 +13,5 @@ dist
 *.pyo
 *.tmp*
 *.swp
+
+YYenv/

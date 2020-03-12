@@ -16,21 +16,21 @@ from time import sleep
 from pypxe import tftp # PyPXE TFTP service
 from pypxe import dhcp # PyPXE DHCP service
 from pypxe import http # PyPXE HTTP service
-from pypxe import nbd  # PyPXE NBD service
+#rom pypxe import nbd  # PyPXE NBD service
 from pypxe import helpers
 args = None
 # default settings
 SETTINGS = {'NETBOOT_DIR':'netboot',
             'NETBOOT_FILE':'',
-            'DHCP_SERVER_IP':'192.168.2.2',
+            'DHCP_SERVER_IP':'11.1.1.100',
             'DHCP_SERVER_PORT':67,
-            'DHCP_OFFER_BEGIN':'192.168.2.100',
-            'DHCP_OFFER_END':'192.168.2.150',
+            'DHCP_OFFER_BEGIN':'11.1.1.200',
+            'DHCP_OFFER_END':'11.1.1.222',
             'DHCP_SUBNET':'255.255.255.0',
             'DHCP_DNS':'8.8.8.8',
-            'DHCP_ROUTER':'192.168.2.1',
+            'DHCP_ROUTER':'11.1.1.1',
             'DHCP_BROADCAST':'',
-            'DHCP_FILESERVER':'192.168.2.2',
+            'DHCP_FILESERVER':'11.1.1.100',
             'DHCP_WHITELIST':False,
             'HTTP_PORT':80,
             'LEASES_FILE':'',
@@ -167,8 +167,8 @@ def main():
             args = parse_cli_arguments() # re-parse, CLI options take precedence
 
         # warn the user that they are starting PyPXE as non-root user
-        if os.getuid() != 0:
-            print(sys.stderr, '\nWARNING: Not root. Servers will probably fail to bind.\n')
+        #if os.getuid() != 0:
+        #    print(sys.stderr, '\nWARNING: Not root. Servers will probably fail to bind.\n')
 
 
         # ideally this would be in dhcp itself, but the chroot below *probably*

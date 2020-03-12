@@ -132,8 +132,8 @@ class DHCPD:
 
         signal.signal(signal.SIGINT, self.export_leases)
         signal.signal(signal.SIGTERM, self.export_leases)
-        signal.signal(signal.SIGALRM, self.export_leases)
-        signal.signal(signal.SIGHUP, self.export_leases)
+        #signal.signal(signal.SIGALRM, self.export_leases)
+        #signal.signal(signal.SIGHUP, self.export_leases)
 
     def export_leases(self, signum, frame):
         if self.save_leases_file:
