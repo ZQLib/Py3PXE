@@ -1,9 +1,14 @@
 default menu.c32
 prompt 0
-timeout 300
-ONTIMEOUT local
+timeout 100
+ONTIMEOUT TinyCore
 
 MENU TITLE PyPXE
+
+LABEL AgreeOS
+    MENU LABEL AgreeOS
+    KERNEL memdisk
+    APPEND iso initrd=mini.iso
 
 LABEL TinyCore
     MENU LABEL TinyCore
