@@ -10,6 +10,7 @@ import os
 import logging
 import signal
 import json
+import binascii
 from collections import defaultdict
 from time import time
 
@@ -187,19 +188,21 @@ class DHCPD:
 
     def tlv_encode(self, tag, value):
         '''Encode a TLV option.'''
+        if(type(value).__name__=='str'):
+            value=str.encode(value)
         return struct.pack('BB', tag, len(value)) + value
 
     def tlv_parse(self, raw):
         '''Parse a string of TLV-encoded options.'''
         ret = {}
         while(raw):
-            [tag] = struct.unpack('B', raw[0])
+            [tag] = struct.unpack('B', raw[0].to_bytes(1,'big'))
             if tag == 0: # padding
                 raw = raw[1:]
                 continue
             if tag == 255: # end marker
                 break
-            [length] = struct.unpack('B', raw[1])
+            [length] = struct.unpack('B', raw[1].to_bytes(1,'big'))
             value = raw[2:2 + length]
             raw = raw[2 + length:]
             if tag in ret:
@@ -243,10 +246,11 @@ class DHCPD:
         response += chaddr # chaddr
 
         # BOOTP legacy pad
-        response += chr(0) * 64 # server name
+        yy_tmp = chr(0) * 64
+        response += str.encode(yy_tmp) # server name
         if self.mode_proxy:
-            response += self.file_name
-            response += chr(0) * (128 - len(self.file_name))
+            response += str.encode(self.file_name)
+            response += str.encode(chr(0) * (128 - len(self.file_name)))
         else:
             response += chr(0) * 128
         response += self.magic # magic section
@@ -293,12 +297,12 @@ class DHCPD:
                 filename = 'chainload.kpxe' # chainload iPXE
                 if opt53 == 5: # ACK
                     self.leases[client_mac]['ipxe'] = False
-        response += self.tlv_encode(67, filename.encode('ascii') + chr(0))
+        response += self.tlv_encode(67, filename.encode('ascii') + chr(0).encode('ascii'))
 
         if self.mode_proxy:
             response += self.tlv_encode(60, 'PXEClient')
-            response += struct.pack('!BBBBBBB4sB', 43, 10, 6, 1, 0b1000, 10, 4, chr(0) + 'PXE', 0xff)
-        response += '\xff'
+            response += struct.pack('!BBBBBBB4sB', 43, 10, 6, 1, 0b1000, 10, 4, (chr(0) + 'PXE').encode('ascii'), 0xff)
+        response += '\xff'.encode('ascii')
         return response
 
     def dhcp_offer(self, message):
@@ -340,7 +344,7 @@ class DHCPD:
         if self.whitelist and self.get_mac(client_mac) not in self.get_namespaced_static('dhcp.binding'):
             self.logger.info('Non-whitelisted client request received from {0}'.format(self.get_mac(client_mac)))
             return False
-        if 60 in self.options[client_mac] and 'PXEClient' in self.options[client_mac][60][0]:
+        if 60 in self.options[client_mac] and b'PXEClient' in self.options[client_mac][60][0]:
             self.logger.info('PXE client request received from {0}'.format(self.get_mac(client_mac)))
             return True
         self.logger.info('Non-PXE client request received from {0}'.format(self.get_mac(client_mac)))
@@ -353,7 +357,7 @@ class DHCPD:
             [client_mac] = struct.unpack('!28x6s', message[:34])
             self.logger.debug('Received message')
             self.logger.debug('<--BEGIN MESSAGE-->')
-            self.logger.debug('{0}'.format(repr(message)))
+            self.logger.debug('{0}'.format(binascii.b2a_hex(message)))
             self.logger.debug('<--END MESSAGE-->')
             self.options[client_mac] = self.tlv_parse(message[240:])
             self.logger.debug('Parsed received options')
