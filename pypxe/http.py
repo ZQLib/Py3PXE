@@ -55,7 +55,7 @@ class HTTPD:
         request = connection.recv(1024)
         self.logger.debug('Recieved message from {addr}'.format(addr = repr(addr)))
         self.logger.debug('<--BEGIN MESSAGE-->')
-        self.logger.debug('{0}'.format(repr(request)))
+        self.logger.debug('{0}'.format(binascii.b2a_hex(request)))
         self.logger.debug('<--END MESSAGE-->')
         method, target, version = request.split('\r\n')[0].split(' ')
         target = target.lstrip('/')

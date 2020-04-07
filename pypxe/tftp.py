@@ -54,7 +54,7 @@ class Client:
         response = struct.pack('!HH', 3, self.block % 65536)
         response += data
         self.sock.sendto(response, self.address)
-        self.logger.debug('Sending block {0}'.format(self.block))
+        #self.logger.debug('Sending block {0}'.format(self.block))
         self.retries -= 1
         self.sent_time = time.time()
 
@@ -72,7 +72,7 @@ class Client:
 
     def valid_mode(self):
         '''Determines if the file read mode octet; if not, send an error.'''
-        mode = self.message.split(chr(0))[1]
+        mode = (bytes.decode(self.message)).split(chr(0))[1]
         if mode == 'octet': return True
         self.send_error(5, 'Mode {0} not supported'.format(mode))
         return False
@@ -82,7 +82,7 @@ class Client:
             Determines if the file exists under the netboot_directory,
             and if it is a file; if not, send an error.
         '''
-        filename = self.message.split(chr(0))[0].lstrip('/')
+        filename = (bytes.decode(self.message)).split(chr(0))[0].lstrip('/')
         try:
             filename = helpers.normalize_path(self.netboot_directory, filename)
         except helpers.PathTraversalException:
@@ -99,7 +99,7 @@ class Client:
             Extracts the options sent from a client; if any, calculates the last
             block based on the filesize and blocksize.
         '''
-        options = self.message.split(chr(0))[2: -1]
+        options = (bytes.decode(self.message)).split(chr(0))[2: -1]
         options = dict(zip(options[0::2], map(int, options[1::2])))
         self.changed_blksize = 'blksize' in options
         if self.changed_blksize:
@@ -121,11 +121,11 @@ class Client:
         # only called if options, so send them all
         response = struct.pack("!H", 6)
         if self.changed_blksize:
-            response += 'blksize' + chr(0)
-            response += str(self.blksize) + chr(0)
+            response += b'blksize' + b'\x00' # chr(0)
+            response += str.encode(str(self.blksize)) + b'\x00' # chr(0)
         if self.tsize:
-            response += 'tsize' + chr(0)
-            response += str(self.filesize) + chr(0)
+            response += b'tsize' + b'\x00' # chr(0)
+            response += str.encode(str(self.filesize)) + b'\x00' # chr(0)
         self.sock.sendto(response, self.address)
 
     def new_request(self):
@@ -144,6 +144,7 @@ class Client:
             # so forcefully shutdown
             self.complete()
             return
+        print("     ---OPEN " + self.filename)
         self.fh = open(self.filename, 'rb')
         self.filesize = os.path.getsize(self.filename)
         if not self.parse_options():
@@ -171,8 +172,8 @@ class Client:
         '''
         response =  struct.pack('!H', 5) # error opcode
         response += struct.pack('!H', code) # error code
-        response += message
-        response += chr(0)
+        response += str.encode(message)
+        response += b'\x00' # chr(0)
         self.sock.sendto(response, self.address)
         self.logger.info('Sending {0}: {1} {2}'.format(code, message, filename))
 
@@ -182,6 +183,7 @@ class Client:
             and marks ourselves as dead to be cleaned up.
         '''
         try:
+            print("        ----CLOSE--" + self.filename)
             self.fh.close()
         except AttributeError:
             pass # we have not opened yet or file-not-found

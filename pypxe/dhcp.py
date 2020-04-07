@@ -110,6 +110,9 @@ class DHCPD:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        # if not hasattr(socket,'SO_BINDTODEVICE') :
+        #     socket.SO_BINDTODEVICE = 25
+        # self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, b'eth0');
         self.sock.bind(('', self.port ))
 
         # key is MAC
@@ -302,7 +305,7 @@ class DHCPD:
         if self.mode_proxy:
             response += self.tlv_encode(60, 'PXEClient')
             response += struct.pack('!BBBBBBB4sB', 43, 10, 6, 1, 0b1000, 10, 4, (chr(0) + 'PXE').encode('ascii'), 0xff)
-        response += '\xff'.encode('ascii')
+        response += b'\xff'
         return response
 
     def dhcp_offer(self, message):
