@@ -14,5 +14,7 @@ dist
 *.tmp*
 *.swp
 
+netboot/pxelinux.cfg/
 YYenv/
 YYv/
+Yvv/
