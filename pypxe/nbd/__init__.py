@@ -1,1 +1,1 @@
-from nbd import *
+from pypxe.nbd import *

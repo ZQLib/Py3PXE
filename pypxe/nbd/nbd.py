@@ -5,7 +5,7 @@ import threading
 import sys
 import os
 import io
-import writes
+from pypxe.nbd import writes
 from pypxe import helpers
 
 class NBD:

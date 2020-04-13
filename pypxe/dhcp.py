@@ -136,8 +136,8 @@ class DHCPD:
 
         signal.signal(signal.SIGINT, self.export_leases)
         signal.signal(signal.SIGTERM, self.export_leases)
-        #signal.signal(signal.SIGALRM, self.export_leases)
-        #signal.signal(signal.SIGHUP, self.export_leases)
+        signal.signal(signal.SIGALRM, self.export_leases)
+        signal.signal(signal.SIGHUP, self.export_leases)
 
     def export_leases(self, signum, frame):
         if self.save_leases_file:
@@ -358,10 +358,10 @@ class DHCPD:
         while True:
             message, address = self.sock.recvfrom(1024)
             [client_mac] = struct.unpack('!28x6s', message[:34])
-            self.logger.debug('Received message')
+            #self.logger.debug('Received message')
             self.logger.debug('<--BEGIN MESSAGE-->')
             self.logger.debug('{0}'.format(binascii.b2a_hex(message)))
-            self.logger.debug('<--END MESSAGE-->')
+            #self.logger.debug('<--END MESSAGE-->')
             self.options[client_mac] = self.tlv_parse(message[240:])
             self.logger.debug('Parsed received options')
             self.logger.debug('<--BEGIN OPTIONS-->')

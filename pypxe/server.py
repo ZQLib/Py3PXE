@@ -6,6 +6,7 @@ import sys
 import json
 import logging
 import logging.handlers
+import platform
 
 try:
     import argparse
@@ -16,7 +17,7 @@ from time import sleep
 from pypxe import tftp # PyPXE TFTP service
 from pypxe import dhcp # PyPXE DHCP service
 from pypxe import http # PyPXE HTTP service
-#rom pypxe import nbd  # PyPXE NBD service
+from pypxe import nbd # PyPXE NBD service
 from pypxe import helpers
 args = None
 # default settings
@@ -161,14 +162,15 @@ def main():
             except ValueError:
                 sys.exit('{0} does not contain valid JSON'.format(args.JSON_CONFIG))
             for setting in loaded_config:
-                if type(loaded_config[setting]) is unicode:
+                if type(loaded_config[setting]) is str:
                     loaded_config[setting] = loaded_config[setting].encode('ascii')
             SETTINGS.update(loaded_config) # update settings with JSON config
             args = parse_cli_arguments() # re-parse, CLI options take precedence
 
         # warn the user that they are starting PyPXE as non-root user
-        #if os.getuid() != 0:
-        #    print(sys.stderr, '\nWARNING: Not root. Servers will probably fail to bind.\n')
+        if(platform.system()=='Linux'):
+            if os.getuid() != 0:
+                print(sys.stderr, '\nWARNING: Not root. Servers will probably fail to bind.\n')
 
 
         # ideally this would be in dhcp itself, but the chroot below *probably*
@@ -307,7 +309,7 @@ def main():
             # setup NBD logger
             nbd_logger = helpers.get_child_logger(sys_logger, 'NBD')
             sys_logger.info('Starting NBD server...')
-            nbd_server = nbd.NBD(
+            nbd_server = nbd.nbd.NBD(
                 block_device = args.NBD_BLOCK_DEVICE,
                 write = args.NBD_WRITE,
                 cow = args.NBD_COW,
