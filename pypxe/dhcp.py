@@ -184,7 +184,7 @@ class DHCPD:
         leased = map(encode, leased)
 
         # loop through, make sure not already leased and not in form X.Y.Z.0
-        for offset in xrange(to_host - from_host):
+        for offset in range(to_host - from_host):
             if (from_host + offset) % 256 and from_host + offset not in leased:
                 return decode(from_host + offset)
         raise OutOfLeasesError('Ran out of IP addresses to lease!')
@@ -255,7 +255,7 @@ class DHCPD:
             response += str.encode(self.file_name)
             response += str.encode(chr(0) * (128 - len(self.file_name)))
         else:
-            response += chr(0) * 128
+            response += str.encode(chr(0) * 128)
         response += self.magic # magic section
         return (client_mac, response)
 
@@ -275,7 +275,7 @@ class DHCPD:
             router = self.get_namespaced_static('dhcp.binding.{0}.router'.format(self.get_mac(client_mac)), self.router)
             response += self.tlv_encode(3, socket.inet_aton(router)) # router
             dns_server = self.get_namespaced_static('dhcp.binding.{0}.dns'.format(self.get_mac(client_mac)), [self.dns_server])
-            dns_server = ''.join([socket.inet_aton(i) for i in dns_server])
+            dns_server = ''.join([(socket.inet_aton(i)).decode() for i in dns_server])
             response += self.tlv_encode(6, dns_server)
             response += self.tlv_encode(51, struct.pack('!I', 86400)) # lease time
 

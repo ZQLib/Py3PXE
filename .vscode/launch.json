@@ -9,8 +9,9 @@
             "type": "python",
             "request": "launch",
             "module": "pypxe.server",
+            "sudo": true,
             "args": [
-                "--dhcp-proxy",
+                "--dhcp",
                 "--verbose=all",
                 "--debug=all"
             ]
