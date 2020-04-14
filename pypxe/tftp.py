@@ -48,8 +48,14 @@ class Client:
             Sends the next block of data, setting the timeout and retry
             variables accordingly.
         '''
-        self.fh.seek(self.blksize * (self.block - 1))
-        data = self.fh.read(self.blksize)
+        data = None
+        try:
+            self.fh.seek(self.blksize * (self.block - 1))
+            data = self.fh.read(self.blksize)
+        except:
+            self.logger.error('Error while reading block {0}'.format(self.block))
+            self.dead = True
+            return
         # opcode 3 == DATA, wraparound block number
         response = struct.pack('!HH', 3, self.block % 65536)
         response += data
@@ -172,7 +178,7 @@ class Client:
         '''
         response =  struct.pack('!H', 5) # error opcode
         response += struct.pack('!H', code) # error code
-        response += str.encode(message)
+        response += message.encode('ascii')
         response += b'\x00' # chr(0)
         self.sock.sendto(response, self.address)
         self.logger.info('Sending {0}: {1} {2}'.format(code, message, filename))
@@ -183,12 +189,12 @@ class Client:
             and marks ourselves as dead to be cleaned up.
         '''
         try:
-            print("        ----CLOSE--" + self.filename)
             self.fh.close()
         except AttributeError:
             pass # we have not opened yet or file-not-found
         self.sock.close()
         self.dead = True
+        print(self.filename, " ----CLOSE- ", self.dead)
 
     def handle(self):
         '''Takes the message from the parent socket and act accordingly.'''
@@ -273,7 +279,9 @@ class TFTPD:
         '''This method listens for incoming requests.'''
         while True:
             # remove complete clients to select doesn't fail
-            map(self.ongoing.remove, [client for client in self.ongoing if client.dead])
+            for client in self.ongoing:
+                if client.dead:
+                    self.ongoing.remove(client)
             rlist, _, _ = select.select([self.sock] + [client.sock for client in self.ongoing if not client.dead], [], [], 1)
             for sock in rlist:
                 if sock == self.sock:

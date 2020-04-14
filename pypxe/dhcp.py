@@ -11,6 +11,7 @@ import logging
 import signal
 import json
 import binascii
+import platform
 from collections import defaultdict
 from time import time
 
@@ -136,8 +137,16 @@ class DHCPD:
 
         signal.signal(signal.SIGINT, self.export_leases)
         signal.signal(signal.SIGTERM, self.export_leases)
-        signal.signal(signal.SIGALRM, self.export_leases)
-        signal.signal(signal.SIGHUP, self.export_leases)
+        '''
+        https://docs.python.org/2/library/signal.html#signal.signal
+        On Windows, signal() can only be called with
+        SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV, or 
+        SIGTERM. A ValueError will be raised in any 
+        other case.
+        '''
+        if(platform.system()=='Linux'):
+            signal.signal(signal.SIGALRM, self.export_leases)
+            signal.signal(signal.SIGHUP, self.export_leases)
 
     def export_leases(self, signum, frame):
         if self.save_leases_file:
@@ -267,7 +276,7 @@ class DHCPD:
                 5 - DHCPACK
             See RFC2132 9.6 for details.
         '''
-        response = self.tlv_encode(53, chr(opt53)) # message type, OFFER
+        response = self.tlv_encode(53, struct.pack('!B', opt53)) # message type, OFFER
         response += self.tlv_encode(54, socket.inet_aton(self.ip)) # DHCP Server
         if not self.mode_proxy:
             subnet_mask = self.get_namespaced_static('dhcp.binding.{0}.subnet'.format(self.get_mac(client_mac)), self.subnet_mask)
@@ -360,7 +369,7 @@ class DHCPD:
             [client_mac] = struct.unpack('!28x6s', message[:34])
             #self.logger.debug('Received message')
             self.logger.debug('<--BEGIN MESSAGE-->')
-            self.logger.debug('{0}'.format(binascii.b2a_hex(message)))
+            self.logger.debug('{0}'.format(repr(message)))
             #self.logger.debug('<--END MESSAGE-->')
             self.options[client_mac] = self.tlv_parse(message[240:])
             self.logger.debug('Parsed received options')
