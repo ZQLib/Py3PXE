@@ -1,14 +1,14 @@
 default menu.c32
 prompt 0
 timeout 100
-ONTIMEOUT TinyCore
+ONTIMEOUT AgreeOS
 
-MENU TITLE PyPXE
+MENU TITLE AgreeOS PXE
 
 LABEL AgreeOS
-    MENU LABEL AgreeOS
-    KERNEL memdisk
-    APPEND iso initrd=mini.iso
+    MENU LABEL Install AgreeOS From Network
+    KERNEL kernel
+    APPEND initrd=initrd.img quiet root=/dev/ram0 androidboot.selinux=permissive vmalloc=192M buildvariant=userdebug INSTALL=1 BYNET=1 DEBUG=
 
 LABEL TinyCore
     MENU LABEL TinyCore
