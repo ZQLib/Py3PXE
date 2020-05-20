@@ -1,7 +1,7 @@
 default menu.c32
 prompt 0
-timeout 100
-ONTIMEOUT AgreeOS
+timeout 50
+ONTIMEOUT ZOS
 
 MENU TITLE AgreeOS PXE
 
@@ -9,6 +9,11 @@ LABEL AgreeOS
     MENU LABEL Install AgreeOS From Network
     KERNEL kernel
     APPEND initrd=initrd.img quiet root=/dev/ram0 androidboot.selinux=permissive vmalloc=192M buildvariant=userdebug INSTALL=1 BYNET=1 DEBUG=
+
+LABEL ZOS
+    MENU LABEL Run ZOS From Network
+    KERNEL kernel
+    APPEND initrd=intrmd.img root=/dev/ram0 androidboot.selinux=permissive vmalloc=192M buildvariant=userdebug SRC=/zos-x86-1.0-r1 DEBUG=2 panic=21
 
 LABEL TinyCore
     MENU LABEL TinyCore

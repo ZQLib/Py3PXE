@@ -1,1 +1,1 @@
-sudo python -m pypxe.server --dhcp --verbose=all --debug=all
+sudo YYv/bin/python -m pypxe.server --dhcp --verbose=all --debug=all
