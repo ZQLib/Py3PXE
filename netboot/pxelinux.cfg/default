@@ -1,9 +1,14 @@
 default menu.c32
 prompt 0
-timeout 100
-ONTIMEOUT TinyCore
+timeout 50
+ONTIMEOUT AosTest
 
 MENU TITLE PyPXE
+
+LABEL AosTest
+    MENU LABEL AOS Test
+    KERNEL kernel
+    APPEND initrd=initrd.img root=/dev/ram0 androidboot.selinux=permissive vmalloc=192M buildvariant=userdebug SRC=/ZTS
 
 LABEL AgreeOS
     MENU LABEL AgreeOS

@@ -54,7 +54,7 @@ class Client:
         response = struct.pack('!HH', 3, self.block % 65536)
         response += data
         self.sock.sendto(response, self.address)
-        self.logger.debug('Sending block {0}'.format(self.block))
+        ##YY self.logger.debug('Sending block {0}'.format(self.block))
         self.retries -= 1
         self.sent_time = time.time()
 
