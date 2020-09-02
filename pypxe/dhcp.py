@@ -10,6 +10,8 @@ import os
 import logging
 import signal
 import json
+import IN
+import binascii
 from collections import defaultdict
 from time import time
 
@@ -109,6 +111,8 @@ class DHCPD:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, IN.SO_BINDTODEVICE, 'ens3' + '\0')
+        ##YY self.logger.debug('BindInterface={0}'.format(IN.SO_BINDTODEVICE))
         self.sock.bind(('', self.port ))
 
         # key is MAC
@@ -340,6 +344,14 @@ class DHCPD:
         if self.whitelist and self.get_mac(client_mac) not in self.get_namespaced_static('dhcp.binding'):
             self.logger.info('Non-whitelisted client request received from {0}'.format(self.get_mac(client_mac)))
             return False
+
+        if 60 in self.options[client_mac] and 'MSFT' in self.options[client_mac][60][0]:
+            self.logger.info('DHCP for WinXP!')
+            return True
+
+        if 60 in self.options[client_mac] and 'udhcp' in self.options[client_mac][60][0]:
+            return True
+
         if 60 in self.options[client_mac] and 'PXEClient' in self.options[client_mac][60][0]:
             self.logger.info('PXE client request received from {0}'.format(self.get_mac(client_mac)))
             return True
@@ -353,13 +365,14 @@ class DHCPD:
             [client_mac] = struct.unpack('!28x6s', message[:34])
             self.logger.debug('Received message')
             self.logger.debug('<--BEGIN MESSAGE-->')
-            self.logger.debug('{0}'.format(repr(message)))
+            self.debug_string_hex(message)
             self.logger.debug('<--END MESSAGE-->')
             self.options[client_mac] = self.tlv_parse(message[240:])
             self.logger.debug('Parsed received options')
             self.logger.debug('<--BEGIN OPTIONS-->')
             self.logger.debug('{0}'.format(repr(self.options[client_mac])))
             self.logger.debug('<--END OPTIONS-->')
+            self.logger.debug(binascii.b2a_hex(client_mac))
             if not self.validate_req(client_mac):
                 continue
             type = ord(self.options[client_mac][53][0]) # see RFC2131, page 10
@@ -374,3 +387,7 @@ class DHCPD:
                 self.dhcp_ack(message)
             else:
                 self.logger.debug('Unhandled DHCP message type {0} from {1}'.format(type, self.get_mac(client_mac)))
+
+    def debug_string_hex(self, buf):
+        lin = ['%02X' % ord(i) for i in buf]
+        self.logger.debug(" ".join(lin))
