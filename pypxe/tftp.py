@@ -72,8 +72,10 @@ class Client:
 
     def valid_mode(self):
         '''Determines if the file read mode octet; if not, send an error.'''
-        mode = self.message.split(chr(0))[1]
-        if mode == 'octet': return True
+        '''a bytes-like object is required, not str'''
+        print(self.message)
+        mode = self.message.split(chr(0).encode())[1]
+        if mode.decode() == 'octet': return True
         self.send_error(5, 'Mode {0} not supported'.format(mode))
         return False
 
@@ -171,8 +173,11 @@ class Client:
         '''
         response =  struct.pack('!H', 5) # error opcode
         response += struct.pack('!H', code) # error code
-        response += message
-        response += chr(0)
+        print(type(response))
+        print(type(message))
+        print("------------------------")
+        response += str.encode(message)
+        response += str.encode(chr(0))
         self.sock.sendto(response, self.address)
         self.logger.info('Sending {0}: {1} {2}'.format(code, message, filename))
 

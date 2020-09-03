@@ -275,7 +275,12 @@ class DHCPD:
             router = self.get_namespaced_static('dhcp.binding.{0}.router'.format(self.get_mac(client_mac)), self.router)
             response += self.tlv_encode(3, socket.inet_aton(router)) # router
             dns_server = self.get_namespaced_static('dhcp.binding.{0}.dns'.format(self.get_mac(client_mac)), [self.dns_server])
-            dns_server = ''.join([socket.inet_aton(i) for i in dns_server])
+            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+            print('type is {0} haha! it={1}'.format(type(dns_server), dns_server))
+            for i in dns_server:
+                print(socket.inet_aton(i))
+            print('_________________________________________________')
+            dns_server = ''.join([str(socket.inet_aton(i)) for i in dns_server])
             response += self.tlv_encode(6, dns_server)
             response += self.tlv_encode(51, struct.pack('!I', 86400)) # lease time
 
@@ -300,12 +305,12 @@ class DHCPD:
                 filename = 'chainload.kpxe' # chainload iPXE
                 if opt53 == 5: # ACK
                     self.leases[client_mac]['ipxe'] = False
-        response += self.tlv_encode(67, filename.encode('ascii') + chr(0))
+        response += self.tlv_encode(67, filename.encode('ascii') + chr(0).encode())
 
         if self.mode_proxy:
             response += self.tlv_encode(60, 'PXEClient')
             response += struct.pack('!BBBBBBB4sB', 43, 10, 6, 1, 0b1000, 10, 4, chr(0) + 'PXE', 0xff)
-        response += '\xff'
+        response += '\xff'.encode()
         return response
 
     def dhcp_offer(self, message):
