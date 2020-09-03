@@ -10,8 +10,9 @@ import os
 import logging
 import signal
 import json
-import IN
+import socket
 import binascii
+import hexdump
 from collections import defaultdict
 from time import time
 
@@ -111,7 +112,7 @@ class DHCPD:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.sock.setsockopt(socket.SOL_SOCKET, IN.SO_BINDTODEVICE, 'ens3' + '\0')
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, ('ens3' + '\0').encode())
         ##YY self.logger.debug('BindInterface={0}'.format(IN.SO_BINDTODEVICE))
         self.sock.bind(('', self.port ))
 
@@ -184,26 +185,28 @@ class DHCPD:
         leased = map(encode, leased)
 
         # loop through, make sure not already leased and not in form X.Y.Z.0
-        for offset in xrange(to_host - from_host):
+        for offset in range(to_host - from_host):
             if (from_host + offset) % 256 and from_host + offset not in leased:
                 return decode(from_host + offset)
         raise OutOfLeasesError('Ran out of IP addresses to lease!')
 
     def tlv_encode(self, tag, value):
         '''Encode a TLV option.'''
+        if(type(value).__name__=='str'):
+            value=str.encode(value)
         return struct.pack('BB', tag, len(value)) + value
 
     def tlv_parse(self, raw):
         '''Parse a string of TLV-encoded options.'''
         ret = {}
         while(raw):
-            [tag] = struct.unpack('B', raw[0])
+            [tag] = struct.unpack('B', raw[0].to_bytes(1,'little'))
             if tag == 0: # padding
                 raw = raw[1:]
                 continue
             if tag == 255: # end marker
                 break
-            [length] = struct.unpack('B', raw[1])
+            [length] = struct.unpack('B', raw[1].to_bytes(1,'little'))
             value = raw[2:2 + length]
             raw = raw[2 + length:]
             if tag in ret:
@@ -247,12 +250,12 @@ class DHCPD:
         response += chaddr # chaddr
 
         # BOOTP legacy pad
-        response += chr(0) * 64 # server name
+        response += (chr(0) * 64).encode() # server name
         if self.mode_proxy:
             response += self.file_name
             response += chr(0) * (128 - len(self.file_name))
         else:
-            response += chr(0) * 128
+            response += (chr(0) * 128).encode()
         response += self.magic # magic section
         return (client_mac, response)
 
@@ -312,13 +315,14 @@ class DHCPD:
         response = header_response + options_response
         self.logger.debug('DHCPOFFER - Sending the following')
         self.logger.debug('<--BEGIN HEADER-->')
-        self.logger.debug('{0}'.format(repr(header_response)))
+        ##YY self.logger.debug('{0}'.format(repr(header_response)))
         self.logger.debug('<--END HEADER-->')
         self.logger.debug('<--BEGIN OPTIONS-->')
         self.logger.debug('{0}'.format(repr(options_response)))
         self.logger.debug('<--END OPTIONS-->')
         self.logger.debug('<--BEGIN RESPONSE-->')
-        self.logger.debug('{0}'.format(repr(response)))
+        ##YY self.logger.debug('{0}'.format(repr(response)))
+        hexdump.dump(response, sep=":")
         self.logger.debug('<--END RESPONSE-->')
         self.sock.sendto(response, (self.broadcast, 68))
 
@@ -345,14 +349,14 @@ class DHCPD:
             self.logger.info('Non-whitelisted client request received from {0}'.format(self.get_mac(client_mac)))
             return False
 
-        if 60 in self.options[client_mac] and 'MSFT' in self.options[client_mac][60][0]:
+        if 60 in self.options[client_mac] and b'MSFT' in self.options[client_mac][60][0]:
             self.logger.info('DHCP for WinXP!')
             return True
 
-        if 60 in self.options[client_mac] and 'udhcp' in self.options[client_mac][60][0]:
+        if 60 in self.options[client_mac] and b'udhcp' in self.options[client_mac][60][0]:
             return True
 
-        if 60 in self.options[client_mac] and 'PXEClient' in self.options[client_mac][60][0]:
+        if 60 in self.options[client_mac] and b'PXEClient' in self.options[client_mac][60][0]:
             self.logger.info('PXE client request received from {0}'.format(self.get_mac(client_mac)))
             return True
         self.logger.info('Non-PXE client request received from {0}'.format(self.get_mac(client_mac)))
@@ -389,5 +393,4 @@ class DHCPD:
                 self.logger.debug('Unhandled DHCP message type {0} from {1}'.format(type, self.get_mac(client_mac)))
 
     def debug_string_hex(self, buf):
-        lin = ['%02X' % ord(i) for i in buf]
-        self.logger.debug(" ".join(lin))
+        self.logger.debug(hexdump.dump(buf, sep="-"))
