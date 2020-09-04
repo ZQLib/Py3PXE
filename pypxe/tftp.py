@@ -26,7 +26,7 @@ class Client:
         self.message, self.address = mainsock.recvfrom(1024)
         self.logger = helpers.get_child_logger(parent.logger, 'Client.{0}'.format(self.address))
         self.netboot_directory = parent.netboot_directory
-        self.logger.debug('Recieving request...')
+        self.logger.debug('Receiving request...')
         self.retries = self.default_retries
         self.block = 1
         self.blksize = 512
@@ -48,13 +48,19 @@ class Client:
             Sends the next block of data, setting the timeout and retry
             variables accordingly.
         '''
-        self.fh.seek(self.blksize * (self.block - 1))
-        data = self.fh.read(self.blksize)
+        data = None
+        try:
+            self.fh.seek(self.blksize * (self.block - 1))
+            data = self.fh.read(self.blksize)
+        except:
+            self.logger.error('Error while reading block {0}'.format(self.block))
+            self.dead = True
+            return
         # opcode 3 == DATA, wraparound block number
         response = struct.pack('!HH', 3, self.block % 65536)
         response += data
         self.sock.sendto(response, self.address)
-        ##YY self.logger.debug('Sending block {0}'.format(self.block))
+        self.logger.debug('Sending block {0}/{1}'.format(self.block, self.lastblock))
         self.retries -= 1
         self.sent_time = time.time()
 
@@ -72,10 +78,8 @@ class Client:
 
     def valid_mode(self):
         '''Determines if the file read mode octet; if not, send an error.'''
-        '''a bytes-like object is required, not str'''
-        print(self.message)
-        mode = self.message.split(chr(0).encode())[1]
-        if mode.decode() == 'octet': return True
+        mode = self.message.split(b'\x00')[1]
+        if mode == b'octet': return True
         self.send_error(5, 'Mode {0} not supported'.format(mode))
         return False
 
@@ -84,7 +88,7 @@ class Client:
             Determines if the file exists under the netboot_directory,
             and if it is a file; if not, send an error.
         '''
-        filename = self.message.split(chr(0))[0].lstrip('/')
+        filename = self.message.split(b'\x00')[0].decode('ascii').lstrip('/')
         try:
             filename = helpers.normalize_path(self.netboot_directory, filename)
         except helpers.PathTraversalException:
@@ -101,8 +105,8 @@ class Client:
             Extracts the options sent from a client; if any, calculates the last
             block based on the filesize and blocksize.
         '''
-        options = self.message.split(chr(0))[2: -1]
-        options = dict(zip(options[0::2], map(int, options[1::2])))
+        options = self.message.split(b'\x00')[2: -1]
+        options = dict(zip((i.decode('ascii') for i in options[0::2]), map(int, options[1::2])))
         self.changed_blksize = 'blksize' in options
         if self.changed_blksize:
             self.blksize = options['blksize']
@@ -123,11 +127,11 @@ class Client:
         # only called if options, so send them all
         response = struct.pack("!H", 6)
         if self.changed_blksize:
-            response += 'blksize' + chr(0)
-            response += str(self.blksize) + chr(0)
+            response += b'blksize' + b'\x00'
+            response += str.encode(str(self.blksize)) + b'\x00'
         if self.tsize:
-            response += 'tsize' + chr(0)
-            response += str(self.filesize) + chr(0)
+            response += b'tsize' + b'\x00'
+            response += str(self.filesize).encode('ascii') + b'\x00'
         self.sock.sendto(response, self.address)
 
     def new_request(self):
@@ -148,8 +152,9 @@ class Client:
             return
         self.fh = open(self.filename, 'rb')
         self.filesize = os.path.getsize(self.filename)
+        self.logger.info('File {0} ({1} bytes) requested'.format(self.filename, self.filesize))
         if not self.parse_options():
-            # no options recieved so start transfer
+            # no options received so start transfer
             if self.block == 1:
                 self.send_block()
             return
@@ -173,11 +178,8 @@ class Client:
         '''
         response =  struct.pack('!H', 5) # error opcode
         response += struct.pack('!H', code) # error code
-        print(type(response))
-        print(type(message))
-        print("------------------------")
-        response += str.encode(message)
-        response += str.encode(chr(0))
+        response += message.encode('ascii')
+        response += b'\x00'
         self.sock.sendto(response, self.address)
         self.logger.info('Sending {0}: {1} {2}'.format(code, message, filename))
 
@@ -232,6 +234,7 @@ class Client:
             self.send_error(4, 'Write support not implemented')
             self.dead = True
 
+
 class TFTPD:
     '''
         This class implements a read-only TFTP server
@@ -276,7 +279,9 @@ class TFTPD:
         '''This method listens for incoming requests.'''
         while True:
             # remove complete clients to select doesn't fail
-            map(self.ongoing.remove, [client for client in self.ongoing if client.dead])
+            for client in self.ongoing:
+                if client.dead:
+                    self.ongoing.remove(client)
             rlist, _, _ = select.select([self.sock] + [client.sock for client in self.ongoing if not client.dead], [], [], 1)
             for sock in rlist:
                 if sock == self.sock:
@@ -285,7 +290,10 @@ class TFTPD:
                 else:
                     # client socket, so tell the client object it's ready
                     sock.parent.ready()
-            # if we haven't recieved an ACK in timeout time, retry
+            # if we haven't received an ACK in timeout time, retry
             [client.send_block() for client in self.ongoing if client.no_ack()]
             # if we have run out of retries, kill the client
-            [client.complete() for client in self.ongoing if client.no_retries()]
+            for client in self.ongoing:
+                if client.no_retries():
+                    client.logger.info('Timeout while sending {0}'.format(client.filename))
+                    client.complete()

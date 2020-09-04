@@ -16,7 +16,7 @@ from time import sleep
 from pypxe import tftp # PyPXE TFTP service
 from pypxe import dhcp # PyPXE DHCP service
 from pypxe import http # PyPXE HTTP service
-#rom pypxe import nbd  # PyPXE NBD service
+from pypxe import nbd  # PyPXE NBD service
 from pypxe import helpers
 args = None
 # default settings
@@ -28,7 +28,7 @@ SETTINGS = {'NETBOOT_DIR':'netboot',
             'DHCP_OFFER_END':'11.1.1.211',
             'DHCP_SUBNET':'255.255.255.0',
             'DHCP_DNS':'114.114.114.114',
-            'DHCP_ROUTER':'11.1.1.1',
+            'DHCP_ROUTER':'11.1.1.100',
             'DHCP_BROADCAST':'',
             'DHCP_FILESERVER':'11.1.1.100',
             'DHCP_WHITELIST':False,
@@ -161,14 +161,14 @@ def main():
             except ValueError:
                 sys.exit('{0} does not contain valid JSON'.format(args.JSON_CONFIG))
             for setting in loaded_config:
-                if type(loaded_config[setting]) is unicode:
+                if type(loaded_config[setting]) is bytes:
                     loaded_config[setting] = loaded_config[setting].encode('ascii')
             SETTINGS.update(loaded_config) # update settings with JSON config
             args = parse_cli_arguments() # re-parse, CLI options take precedence
 
         # warn the user that they are starting PyPXE as non-root user
-        #if os.getuid() != 0:
-        #    print(sys.stderr, '\nWARNING: Not root. Servers will probably fail to bind.\n')
+        if os.getuid() != 0:
+            print(sys.stderr, '\nWARNING: Not root. Servers will probably fail to bind.\n')
 
 
         # ideally this would be in dhcp itself, but the chroot below *probably*
@@ -326,7 +326,7 @@ def main():
 
         sys_logger.info('PyPXE successfully initialized and running!')
 
-        while all(map(lambda x: x.isAlive(), running_services)):
+        while all(map(lambda x: x.is_alive(), running_services)):
             sleep(1)
 
     except KeyboardInterrupt:
